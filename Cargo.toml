@@ -1,0 +1,17 @@
+[package]
+name = "actx-tst"
+version = "0.1.0"
+authors = ["Lucifer Notreal <lucifernotreal@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+actix-web = "1.0.0-alpha.4"
+actix-files = "0.1.0-alpha.6"
+web-view = "0.4.0"
+objc = "0.2.6"
+cocoa = "0.18.4"
+lazy_static = "1.3.0"
+bitflags = "1.0.4"
+serde_json = "1.0.39"
+serde = { version = "1.0.90", features = ["derive"] }
+
