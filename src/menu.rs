@@ -1,13 +1,12 @@
-use objc::{class, sel, sel_impl, msg_send};
+use std::sync::Mutex;
+
+use cocoa::appkit::{NSApp, NSApplication, NSMenu, NSMenuItem};
+use cocoa::base::{id, nil, selector};
+use cocoa::foundation::{NSAutoreleasePool, NSString};
+use lazy_static::lazy_static;
+use objc::{class, msg_send, sel, sel_impl};
 use objc::declare::{ClassDecl, MethodImplementation};
 use objc::runtime::{Class, Object, Sel};
-
-use cocoa::base::{nil, selector, id};
-use cocoa::foundation::{NSString, NSAutoreleasePool};
-use cocoa::appkit::{NSApplication, NSApp, NSMenu, NSMenuItem};
-
-use lazy_static::lazy_static;
-use std::sync::Mutex;
 
 use crate::key::Modifier;
 
@@ -34,6 +33,7 @@ pub struct MenuManager {
 }
 
 unsafe impl Sync for MenuManager {}
+
 unsafe impl Send for MenuManager {}
 
 impl Menu {
@@ -42,7 +42,7 @@ impl Menu {
         unsafe {
             raw_menu = NSMenu::alloc(nil).autorelease();
         }
-        Box::new(Self{raw: raw_menu, items: vec![]})
+        Box::new(Self { raw: raw_menu, items: vec![] })
     }
     pub fn add_menu_item(&mut self, menu_item: Box<MenuItem>) {
         unsafe {
@@ -62,7 +62,8 @@ impl Menu {
 }
 
 impl MenuItem {
-    pub fn new(title: &str, modifier: Modifier, shortcut: &str, callback: Box<Fn()>, index: i32) -> Box<Self> {
+    pub fn new(title: &str, modifier: Modifier, shortcut: &str, callback: impl Fn() + 'static, index: i32) -> Box<Self> {
+        let callback = Box::new(callback);
         let raw_menu_item: id;
         unsafe {
             let action = selector("dispatchEvent:");
@@ -71,7 +72,7 @@ impl MenuItem {
             raw_menu_item = NSMenuItem::alloc(nil).initWithTitle_action_keyEquivalent_(
                 title,
                 action,
-                key
+                key,
             ).autorelease();
             if modifier != Modifier::None {
                 let _: () = msg_send![raw_menu_item, setKeyEquivalentModifierMask:modifier];
@@ -83,9 +84,8 @@ impl MenuItem {
             raw: raw_menu_item,
             callback,
             id: index,
-            submenu: None
+            submenu: None,
         })
-
     }
 
     pub fn set_submenu(&mut self, submenu: Box<Menu>) {
@@ -103,7 +103,7 @@ impl MenuItem {
         let item = match &self.submenu {
             Some(submenu) => {
                 submenu.get_from_tag(tag)
-            },
+            }
             None => None
         };
         item
@@ -119,7 +119,7 @@ impl MenuManager {
         match &self.current {
             Some(menu) => {
                 return menu.get_from_tag(tag);
-            },
+            }
             None => return None,
         }
     }
@@ -139,6 +139,7 @@ pub fn set_main_menu(menu: &Box<Menu>) {
     unsafe {
         let app = NSApp();
         app.setMainMenu_(&mut *menu.raw);
+        msg_send![&mut *menu.raw, update];
     }
 }
 
@@ -149,8 +150,8 @@ extern fn dispatch_event(this: &Class, _cmd: Sel, caller: id) {
         let manager = MENU_MANAGER.lock().unwrap();
         let item = manager.get_from_tag(tag);
         match item {
-            Some(item) => {(item.callback)()},
-            _ => {},
+            Some(item) => { (item.callback)() }
+            _ => {}
         }
     }
 }

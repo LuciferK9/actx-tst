@@ -3,9 +3,13 @@ use actix_web::{
     App, HttpServer, middleware,
 };
 use objc::{self, msg_send, sel, sel_impl};
+
 use serde::Deserialize;
 use serde_json;
+
 use web_view;
+
+use std::env;
 
 use key::Modifier;
 
@@ -16,8 +20,10 @@ fn main() {
     // Serve todomvc example from https://github.com/DenisKolodin/yew/tree/master/examples/todomvc
     std::thread::spawn(|| {
         HttpServer::new(|| {
+        let static_dir = env::current_dir().unwrap().join("static");
+        println!("static dir: {:#?}", static_dir);
             App::new()
-                .service(fs::Files::new("/", "./static").index_file("index.html"))
+                .service(fs::Files::new("/", static_dir).index_file("index.html"))
         })
             .bind("127.0.0.1:1337").unwrap()
             .workers(1)
@@ -57,9 +63,9 @@ fn add_menu() {
         "Quit",
         Modifier::Command,
         "q",
-        Box::new(|| {
+        || {
             std::process::exit(0);
-        }),
+        },
         1);
     app_menu.add_menu_item(app_menu_item);
 
@@ -68,14 +74,20 @@ fn add_menu() {
         "Test",
         Modifier::Command | Modifier::Shift,
         "t",
-        Box::new(|| {
+        || {
             println!("Just testing")
-        }),
+        },
         2);
     app_menu.add_menu_item(app_menu_item2);
 
     let mut menubar = menu::Menu::new();
-    let mut menubar_item = menu::MenuItem::new("", Modifier::None, "", Box::new(|| {}), 0);
+    let mut menubar_item = menu::MenuItem::new(
+        "",
+        Modifier::None,
+        "",
+        || {},
+        0
+    );
     menubar_item.set_submenu(app_menu);
     menubar.add_menu_item(menubar_item);
 
